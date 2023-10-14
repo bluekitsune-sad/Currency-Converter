@@ -3,6 +3,7 @@ package com.example.currencyconverter;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -26,10 +27,11 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     List<String> keysList;
-    Spinner toCurrency;
+    Spinner sourceCurrencySpinner; // Spinner for source currency
+    Spinner targetCurrencySpinner; // Spinner for target currency
     TextView textView;
-    OkHttpClient client; // Create OkHttpClient instance
-    String YOUR_API = "YOUR_API_KEY";
+    OkHttpClient client;
+    String YOUR_API = "Your Api from https://exchangeratesapi.io/";
     String BASE_URL = "http://api.exchangeratesapi.io/v1/latest";
 
     @Override
@@ -37,30 +39,70 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        toCurrency = findViewById(R.id.planets_spinner);
+        sourceCurrencySpinner = findViewById(R.id.source_currency_spinner);
+        targetCurrencySpinner = findViewById(R.id.target_currency_spinner);
         EditText edtEuroValue = findViewById(R.id.editText4);
         Button btnConvert = findViewById(R.id.button);
         textView = findViewById(R.id.textView7);
 
-        client = new OkHttpClient(); // Initialize OkHttpClient
+        client = new OkHttpClient();
+
+        // Initialize keysList
+        keysList = new ArrayList<>();
+
+        // Set up Spinners using ArrayAdapter
+        ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, keysList);
+        spinnerArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sourceCurrencySpinner.setAdapter(spinnerArrayAdapter);
+        targetCurrencySpinner.setAdapter(spinnerArrayAdapter);
+
+        // Set default selections for source and target currencies
+        sourceCurrencySpinner.setSelection(keysList.indexOf("EUR"));
+        targetCurrencySpinner.setSelection(keysList.indexOf("USD"));
+
+        // Spinner item selection listeners
+        sourceCurrencySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+                // Handle source currency selection
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parentView) {
+                // Handle nothing selected
+            }
+        });
+
+        targetCurrencySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+                // Handle target currency selection
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parentView) {
+                // Handle nothing selected
+            }
+        });
 
         btnConvert.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (!edtEuroValue.getText().toString().isEmpty()) {
-                    String toCurr = toCurrency.getSelectedItem().toString();
-                    double euroValue = Double.parseDouble(edtEuroValue.getText().toString()); // Use Double.parseDouble
-                    Toast.makeText(MainActivity.this, "Please Wait..", Toast.LENGTH_SHORT).show();
+                    String fromCurrency = sourceCurrencySpinner.getSelectedItem().toString();
+                    String toCurrency = targetCurrencySpinner.getSelectedItem().toString();
+                    double euroValue = Double.parseDouble(edtEuroValue.getText().toString());
+                    Toast.makeText(MainActivity.this, "Please Wait...", Toast.LENGTH_SHORT).show();
 
                     // Call the method to convert currency
                     try {
-                        convertCurrency(toCurr, euroValue);
+                        convertCurrency(fromCurrency, toCurrency, euroValue);
                     } catch (IOException e) {
                         e.printStackTrace();
                         Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    Toast.makeText(MainActivity.this, "Please Enter a Value to Convert..", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Please Enter a Value to Convert...", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -114,7 +156,8 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void run() {
                                 ArrayAdapter<String> spinnerArrayAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, keysList);
-                                toCurrency.setAdapter(spinnerArrayAdapter);
+                                sourceCurrencySpinner.setAdapter(spinnerArrayAdapter);
+                                targetCurrencySpinner.setAdapter(spinnerArrayAdapter);
                             }
                         });
                     } catch (JSONException e) {
@@ -127,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void convertCurrency(final String toCurr, final double euroValue) throws IOException {
+    public void convertCurrency(final String fromCurrency, final String toCurrency, final double euroValue) throws IOException {
         // Construct the API URL with your API key
         String apiKey = YOUR_API;  // Replace with your actual API key
         String baseUrl = BASE_URL; // Corrected the API URL
@@ -152,9 +195,10 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         JSONObject obj = new JSONObject(responseBody);
                         JSONObject rates = obj.getJSONObject("rates");
-                        if (rates.has(toCurr)) {
-                            double rate = rates.getDouble(toCurr);
-                            final double output = euroValue * rate;
+                        if (rates.has(fromCurrency) && rates.has(toCurrency)) {
+                            double rateFrom = rates.getDouble(fromCurrency);
+                            double rateTo = rates.getDouble(toCurrency);
+                            final double output = euroValue * (rateTo / rateFrom);
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -165,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    textView.setText("Conversion not available for the selected currency");
+                                    textView.setText("Conversion not available for the selected currencies");
                                 }
                             });
                         }
